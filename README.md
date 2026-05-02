@@ -54,8 +54,8 @@ WindowsPowerKits/
 ├── functions/
 │   └── system.bat          系统工具功能模块
 ├── scripts/
-│   ├── op.bat              格式化输出工具脚本
-│   └── wait.bat            延时工具脚本
+│   ├── ui.bat              界面与彩色输出工具（边框、状态信息、错误对话框）
+│   └── wait.bat            毫秒级延时工具
 └── README.md               说明文档
 ```
 
