@@ -29,17 +29,21 @@ WindowsPowerKits.bat --bypass_system_version --bypass_terimal_type
 - 通过 `CALL` 将菜单选择路由到各功能模块
 
 **共享工具（在 `WindowsPowerKits.bat` 顶部设置，供各模块使用）：**
-- `scripts/op.bat` — 彩色输出工具；调用方式为 `CALL "%op%" <类型> "消息"`。类型包括：`info`、`ok`、`warn`、`err`、`title`、`dim`、`step`、`done`、`fail`、`hr`
+- `scripts/ui.bat` — 统一界面工具，集中实现彩色输出、边框绘制和错误对话框。调用方式为 `CALL "%ui%" <子命令> [参数...]`：
+  - 信息输出：`info`、`ok`、`warn`、`err`、`title`、`dim`、`step`、`done`、`fail`、`hr`
+  - 边框（80 列宽）：`boxtop`、`boxmid`、`boxbot`
+  - 错误对话框：`errbox <code> <desc>`
+  - 颜色初始化：`init`（在调用方作用域注入 `ESC` / `R` / `BOLD` / `RED` / `GREEN` / ... 等 ANSI 颜色变量）
 - `scripts/wait.bat` — 毫秒级延时工具；调用方式为 `CALL "%wait%" <毫秒数>`
 
 **功能模块**位于 `functions/` 目录下。每个模块需要：
-- 使用 `%~dp0` 重新声明 `%op%` 和 `%wait%` 的路径（因为父作用域的 `%op%` 在 `CALL` 后不会被继承）
-- 重新初始化 ANSI 颜色变量，因为 `ESC` 及颜色变量不能可靠继承
+- 使用 `%~dp0` 重新声明 `%ui%` 和 `%wait%` 的路径（因为父作用域的相对路径在 `CALL` 后不一定指向正确位置）
+- 在文件头部调用 `CALL "%ui%" init` 在本模块作用域中注入 ANSI 颜色变量（`ESC` 及颜色变量不能可靠跨 `SETLOCAL` 继承）
 - 使用 `ENDLOCAL & EXIT /B 0` 返回调用方
 
 ## ANSI 颜色规范
 
-所有脚本在顶部使用以下方式初始化 ANSI 转义码：
+所有脚本通过 `CALL "%ui%" init` 一次性初始化 ANSI 转义码，等价于以下声明：
 ```bat
 FOR /F %%a IN ('powershell -NoProfile -Command "[char]27"') DO SET "ESC=%%a"
 SET "R=!ESC![0m"
@@ -53,10 +57,10 @@ SET "WHITE=!ESC![97m"
 
 ## 添加新功能模块
 
-1. 创建 `functions/<名称>.bat` — 复制标准文件头（ECHO OFF、CHCP 65001、SETLOCAL ENABLEDELAYEDEXPANSION、相对 `%~dp0` 重新声明 `%op%`/`%wait%`、重新初始化 ANSI 变量）
+1. 创建 `functions/<名称>.bat` — 复制标准文件头（ECHO OFF、CHCP 65001、SETLOCAL ENABLEDELAYEDEXPANSION、用 `%~dp0` 重新声明 `%ui%` / `%wait%` 路径、调用 `CALL "%ui%" init` 注入颜色变量）
 2. 在 `WindowsPowerKits.bat` 的 `:MAIN_MENU` 中添加新编号的菜单项
 3. 在菜单选择的 `IF/ELSE IF` 块中添加对应的 `CALL "%<名称>%"` 分支
-4. 在 `WindowsPowerKits.bat` 顶部（紧靠 `system`、`op`、`wait` 附近）声明新模块的路径变量
+4. 在 `WindowsPowerKits.bat` 顶部（紧靠 `system`、`ui`、`wait` 附近）声明新模块的路径变量
 5. 添加依赖文件存在性检查（`IF NOT EXIST "%<名称>%" GOTO ERR_<名称>`）及对应的 `:ERR_<名称>` 标签
 
 ## 界面布局规范
