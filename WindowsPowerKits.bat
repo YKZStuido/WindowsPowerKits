@@ -141,11 +141,49 @@ IF "!ch!"=="1" (
 REM ============================================================================
 REM  ERROR —— 全屏红色错误对话框，按任意键退出
 REM    %1 = 错误代码（短）   %2 = 错误描述（长，最长 74 列）
+REM
+REM  注意：本例程必须自包含，不能依赖 ui.bat。
+REM    ERR_UI 路径正是因为 ui.bat 缺失或损坏才会跳转到这里——若错误对话框
+REM    再去 CALL ui.bat，将无法显示任何提示，使用户陷入"静默失败"。因此：
+REM      1) 颜色变量本地重新初始化（不依赖之前的 ui init）；
+REM      2) 边框/对话框完全内联，不调用 ui errbox。
+REM    若 PowerShell 也不可用（无法获取 ESC），则降级为纯文本输出。
 REM ============================================================================
 :ERROR
 COLOR 07 & CLS
 TITLE WindowsPowerKits - 错误
-CALL "%ui%" errbox "%~1" "%~2"
-ECHO  !DIM!  按任意键退出...!R!
+SET "_ec=%~1"
+SET "_em=%~2"
+
+REM ── 自包含 ANSI 颜色初始化（覆盖父作用域已有变量也无妨）────────────────
+SET "_ESC="
+FOR /F %%a IN ('powershell -NoProfile -Command "[char]27" 2^>NUL') DO SET "_ESC=%%a"
+IF DEFINED _ESC (
+    SET "_R=!_ESC![0m"
+    SET "_BOLD=!_ESC![1m"
+    SET "_DIM=!_ESC![2m"
+    SET "_RED=!_ESC![31m"
+    SET "_WHITE=!_ESC![97m"
+) ELSE (
+    REM PowerShell 不可用：所有色码留空，退化为纯文本
+    SET "_R=" & SET "_BOLD=" & SET "_DIM=" & SET "_RED=" & SET "_WHITE="
+)
+
+REM ── 文本切片到 74 列宽（71 个空格右填充以保证对齐）───────────────────
+SET "_pad=                                                                       "
+SET "_ec_line=!_ec!!_pad!"
+SET "_em_line=!_em!!_pad!"
+
+ECHO.
+ECHO  !_RED!╭──────────────────────────────────────────────────────────────────────────────╮!_R!
+ECHO  !_RED!│!_R!  !_BOLD!!_WHITE!错误!_R!                                                                        !_RED!│!_R!
+ECHO  !_RED!├──────────────────────────────────────────────────────────────────────────────┤!_R!
+ECHO  !_RED!│!_R!                                                                              !_RED!│!_R!
+ECHO  !_RED!│!_R!  !_RED!!_BOLD!!_ec_line:~0,74!!_R!  !_RED!│!_R!
+ECHO  !_RED!│!_R!  !_DIM!!_em_line:~0,74!!_R!  !_RED!│!_R!
+ECHO  !_RED!│!_R!                                                                              !_RED!│!_R!
+ECHO  !_RED!╰──────────────────────────────────────────────────────────────────────────────╯!_R!
+ECHO.
+ECHO  !_DIM!  按任意键退出...!_R!
 PAUSE > NUL
 ENDLOCAL & EXIT /B 1
